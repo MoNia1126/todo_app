@@ -15,15 +15,17 @@ class _TaskListTabState extends State<TaskListTab> {
   Widget build(BuildContext context) {
     var listProvider = Provider.of<ListProvider>(context);
     if (listProvider.tasksList.isEmpty) {
-      listProvider.getAllTasksFromFireStore();
+      listProvider.refreshTasks();
     }
     return Column(
       children: [
         CalendarTimeline(
-          initialDate: DateTime.now(),
+          initialDate: listProvider.selectDate,
           firstDate: DateTime.now().subtract(Duration(days: 365)),
           lastDate: DateTime.now().add(Duration(days: 365)),
-          onDateSelected: (date) => print(date),
+          onDateSelected: (date) {
+            listProvider.changeSelectDate(date);
+          },
           leftMargin: 20,
           monthColor: MyTheme.blackColor,
           dayColor: MyTheme.blackColor,
