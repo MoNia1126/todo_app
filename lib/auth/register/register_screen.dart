@@ -1,13 +1,31 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:todo/auth/login/login_screen.dart';
 import 'package:todo/components/custom_text_form_field.dart';
+import 'package:todo/dialog_utils.dart';
+import 'package:todo/firebase_utils.dart';
+import 'package:todo/home/home_screen.dart';
+import 'package:todo/model/my_user.dart';
 
-class RegisterScreen extends StatelessWidget {
+import '../../providers/auth_provider.dart';
+
+class RegisterScreen extends StatefulWidget {
   static const String routeName = 'register';
-  var nameController = TextEditingController();
-  var emailController = TextEditingController();
-  var passwordController = TextEditingController();
-  var confirmPasswordController = TextEditingController();
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  var nameController = TextEditingController(text: "Monia");
+
+  var emailController = TextEditingController(text: 'monia@gmail.com');
+
+  var passwordController = TextEditingController(text: '1234567');
+
+  var confirmPasswordController = TextEditingController(text: '1234567');
+
   var formKey = GlobalKey<FormState>();
 
   @override
@@ -48,7 +66,7 @@ class RegisterScreen extends StatelessWidget {
                           return 'Please Enter Email';
                         }
                         bool emailValid = RegExp(
-                                r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
+                            r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
                             .hasMatch(text);
                         if (!emailValid) {
                           return 'Please enter a valid email';
@@ -119,7 +137,54 @@ class RegisterScreen extends StatelessWidget {
     );
   }
 
-  void register() {
-    if (formKey.currentState?.validate() == true) {}
+  void register() async {
+    if (formKey.currentState?.validate() == true) {
+      // DialogUtils.showLoading(context, 'Loading...');
+      // await Future.delayed(Duration(seconds: 2));
+      // DialogUtils.hideLoading(context);
+      //todo : show loading
+      DialogUtils.showLoading(context, 'Loading...');
+      try {
+        final credential =
+            await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: emailController.text,
+          password: passwordController.text,
+        );
+        MyUser myUser = MyUser(
+            id: credential.user?.uid ?? '',
+            name: nameController.text,
+            email: emailController.text);
+        await FirebaseUtils.addUserToFireStore(myUser);
+        var authProvider = Provider.of<AuthProvider>(context, listen: false);
+        authProvider.updateUser(myUser);
+        //todo : hide loading
+        DialogUtils.hideLoading(context);
+        //todo : show message
+        DialogUtils.showMessage(context, 'Register Successfully',
+            title: 'Success', posActionName: 'OK', posAction: () {
+          Navigator.of(context).pushReplacementNamed(HomeScreen.routeName);
+        });
+        print("Register Successfully");
+        print(credential.user?.uid ?? '');
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'weak-password') {
+          DialogUtils.hideLoading(context);
+          DialogUtils.showMessage(context, 'The password provided is too weak.',
+              title: 'Error', posActionName: 'OK');
+          print('The password provided is too weak.');
+        } else if (e.code == 'email-already-in-use') {
+          DialogUtils.hideLoading(context);
+          DialogUtils.showMessage(
+              context, 'The account already exists for that email.',
+              title: 'Error', posActionName: 'OK');
+          print('The account already exists for that email.');
+        }
+      } catch (e) {
+        DialogUtils.hideLoading(context);
+        DialogUtils.showMessage(context, '${e.toString()}',
+            title: 'Error', posActionName: 'OK');
+        print(e);
+      }
+    }
   }
 }

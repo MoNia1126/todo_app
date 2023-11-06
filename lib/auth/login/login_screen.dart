@@ -1,11 +1,26 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:todo/auth/register/register_screen.dart';
 import 'package:todo/components/custom_text_form_field.dart';
+import 'package:todo/dialog_utils.dart';
 
-class LoginScreen extends StatelessWidget {
+import '../../firebase_utils.dart';
+import '../../home/home_screen.dart';
+import '../../providers/auth_provider.dart';
+
+class LoginScreen extends StatefulWidget {
   static const String routeName = 'login';
-  var emailController = TextEditingController();
-  var passwordController = TextEditingController();
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  var emailController = TextEditingController(text: 'monia@gmail.com');
+
+  var passwordController = TextEditingController(text: '1234567');
+
   var formKey = GlobalKey<FormState>();
 
   @override
@@ -36,7 +51,7 @@ class LoginScreen extends StatelessWidget {
                           return 'Please Enter Email';
                         }
                         bool emailValid = RegExp(
-                                r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
+                            r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
                             .hasMatch(text);
                         if (!emailValid) {
                           return 'Please enter a valid email';
@@ -91,7 +106,7 @@ class LoginScreen extends StatelessWidget {
                                   .textTheme
                                   .titleMedium!
                                   .copyWith(
-                                      color: Theme.of(context).primaryColor),
+                                  color: Theme.of(context).primaryColor),
                             )),
                       ],
                     )
@@ -103,7 +118,47 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  void register() {
-    if (formKey.currentState?.validate() == true) {}
+  void register() async {
+    if (formKey.currentState?.validate() == true) {
+      DialogUtils.showMessage(context, 'Loading...');
+      try {
+        final credential =
+            await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: emailController.text,
+          password: passwordController.text,
+        );
+        var user = await FirebaseUtils.readUserFromFireStore(
+            credential.user?.uid ?? '');
+        if (user == null) {
+          return;
+        }
+        var authProvider = Provider.of<AuthProvider>(context, listen: false);
+        authProvider.updateUser(user);
+        DialogUtils.hideLoading(context);
+        DialogUtils.showMessage(context, 'Login Successfully',
+            title: 'Success', posActionName: 'OK', posAction: () {
+          Navigator.of(context).pushReplacementNamed(HomeScreen.routeName);
+        });
+        print(credential.user?.uid ?? '');
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'user-not-found') {
+          DialogUtils.hideLoading(context);
+          DialogUtils.showMessage(context, 'No user found for that email.',
+              title: 'Error', posActionName: 'OK');
+          print('No user found for that email.');
+        } else if (e.code == 'wrong-password') {
+          DialogUtils.hideLoading(context);
+          DialogUtils.showMessage(
+              context, 'Wrong password provided for that user.',
+              title: 'Error', posActionName: 'OK');
+          print('Wrong password provided for that user.');
+        }
+      } catch (e) {
+        DialogUtils.hideLoading(context);
+        DialogUtils.showMessage(context, '${e.toString()}',
+            title: 'Error', posActionName: 'OK');
+        print(e.toString());
+      }
+    }
   }
 }

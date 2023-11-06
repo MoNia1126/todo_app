@@ -5,6 +5,8 @@ import 'package:todo/home/task_list/task_widget.dart';
 import 'package:todo/my_theme.dart';
 import 'package:todo/providers/list_provider.dart';
 
+import '../../providers/auth_provider.dart';
+
 class TaskListTab extends StatefulWidget {
   @override
   State<TaskListTab> createState() => _TaskListTabState();
@@ -13,9 +15,10 @@ class TaskListTab extends StatefulWidget {
 class _TaskListTabState extends State<TaskListTab> {
   @override
   Widget build(BuildContext context) {
+    var authProvider = Provider.of<AuthProvider>(context);
     var listProvider = Provider.of<ListProvider>(context);
     if (listProvider.tasksList.isEmpty) {
-      listProvider.refreshTasks();
+      listProvider.getAllTasksFromFireStore(authProvider.currentUser!.id!);
     }
     return Column(
       children: [
@@ -24,7 +27,7 @@ class _TaskListTabState extends State<TaskListTab> {
           firstDate: DateTime.now().subtract(Duration(days: 365)),
           lastDate: DateTime.now().add(Duration(days: 365)),
           onDateSelected: (date) {
-            listProvider.changeSelectDate(date);
+            listProvider.changeSelectDate(date, authProvider.currentUser!.id!);
           },
           leftMargin: 20,
           monthColor: MyTheme.blackColor,
